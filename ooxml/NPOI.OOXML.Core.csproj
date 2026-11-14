@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <AssemblyName>DataJuggler.Excelerate.Office.OOXML</AssemblyName>
+    <RootNamespace>DataJuggler.Excelerate.Office</RootNamespace>
+    <SignAssembly>true</SignAssembly>
+    <AssemblyOriginatorKeyFile>../DataJuggler.Excelerate.Office.snk</AssemblyOriginatorKeyFile>
+    <OutputPath>..\solution\$(Configuration)\</OutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DocumentationFile>..\solution\Release\DataJuggler.Excelerate.Office.OOXML.xml</DocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="POIFS\Crypt\Dsig\KeyInfoKeySelector.cs" />
+    <Compile Remove="POIFS\Crypt\Dsig\Services\RelationshipTransformService.cs" />
+    <Compile Remove="Properties\AssemblyInfoDotnet2.cs" />
+    <Compile Remove="XSSF\UserModel\Charts\XSSFAreaChartData.cs" />
+    <Compile Remove="XSSF\UserModel\Charts\XSSFColumnChartData.cs" />
+    <Compile Remove="XSSF\UserModel\Charts\XSSFNumberCache.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\presetTableStyles.xml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="all" />
+    <PackageReference Include="SkiaSharp"/>
+    <PackageReference Include="System.Security.Cryptography.Xml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\main\NPOI.Core.csproj" />
+    <ProjectReference Include="..\openxml4Net\NPOI.OpenXml4Net.Core.csproj" />
+    <ProjectReference Include="..\OpenXmlFormats\NPOI.OpenXmlFormats.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\main\Polyfills.cs" Link="Polyfills.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="XSSF\UserModel\Charts\" />
+  </ItemGroup>
+
+</Project>

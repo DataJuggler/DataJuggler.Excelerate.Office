@@ -1,0 +1,680 @@
+/* ====================================================================
+   Licensed to the Apache Software Foundation (ASF) Under one or more
+   contributor license agreements.  See the NOTICE file distributed with
+   this work for Additional information regarding copyright ownership.
+   The ASF licenses this file to You Under the Apache License, Version 2.0
+   (the "License"); you may not use this file except in compliance with
+   the License.  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed Under the License is distributed on an "AS Is" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations Under the License.
+==================================================================== */
+
+namespace DataJuggler.Excelerate.Office.SS.Util
+{
+
+    using System;
+    using System.Text;
+    using System.Collections;
+    using DataJuggler.Excelerate.Office.SS.Formula;
+    using DataJuggler.Excelerate.Office.SS.Formula.PTG;
+    using DataJuggler.Excelerate.Office.SS.UserModel;
+
+    public class AreaReference
+    {
+
+        /** The Char (!) that Separates sheet names from cell references */
+        private const char SHEET_NAME_DELIMITER = '!';
+        /** The Char (:) that Separates the two cell references in a multi-cell area reference */
+        private const char CELL_DELIMITER = ':';
+        /** The Char (') used to quote sheet names when they contain special Chars */
+        private const char SPECIAL_NAME_DELIMITER = '\'';
+        private static readonly SpreadsheetVersion DEFAULT_SPREADSHEET_VERSION = SpreadsheetVersion.EXCEL97;
+        /**
+         * Sentinel row index meaning "the caller did not supply one". Structured references that
+         * resolve relative to a row ([#This Row], @) reject this with an explicit error rather than
+         * silently resolving against row 0.
+         */
+        private const int ROW_INDEX_NOT_SPECIFIED = -1;
+
+        private readonly CellReference _firstCell;
+        private readonly CellReference _lastCell;
+        private readonly bool _isSingleCell;
+        private readonly SpreadsheetVersion _version; // never null
+
+        /**
+         * Create an area ref from a string representation.  Sheet names containing special Chars should be
+         * delimited and escaped as per normal syntax rules for formulas.<br/>
+         * The area reference must be contiguous (i.e. represent a single rectangle, not a Union of rectangles)
+         */
+        public AreaReference(String reference, SpreadsheetVersion version)
+            : this(reference, version, null, ROW_INDEX_NOT_SPECIFIED)
+        {
+        }
+
+        /// <summary>
+        /// Creates an area reference from a string that may be either a standard cell reference
+        /// (e.g., <c>Sheet1!A1:B5</c>) or a structured table reference (e.g., <c>Table1[#Headers]</c>).
+        /// When <paramref name="workbook"/> is provided, structured table references are resolved
+        /// automatically against the workbook's table definitions.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Structured reference resolution creates a <see cref="FormulaParser"/> instance internally.
+        /// This is fine for typical named-range resolution, but callers resolving thousands of
+        /// references in a tight loop may want to cache results.
+        /// </para>
+        /// <para>
+        /// <paramref name="version"/> is not consulted when resolving a structured reference — the
+        /// spreadsheet version is taken from <paramref name="workbook"/> in that case, and structured
+        /// references are only supported for <see cref="SpreadsheetVersion.EXCEL2007"/>. Callers that
+        /// know they are resolving a structured reference should prefer
+        /// <see cref="FromStructuredReference(String, IFormulaParsingWorkbook, int)"/>, which derives
+        /// the version from the workbook and rejects non-structured input outright.
+        /// </para>
+        /// </remarks>
+        /// <param name="reference">The reference string to parse.</param>
+        /// <param name="version">
+        /// The spreadsheet version for cell reference validation. Ignored when
+        /// <paramref name="reference"/> is resolved as a structured table reference (see remarks).
+        /// </param>
+        /// <param name="workbook">
+        /// The formula parsing workbook used to resolve structured table references.
+        /// Use <c>XSSFEvaluationWorkbook.Create(workbook)</c> to obtain this from an <c>XSSFWorkbook</c>.
+        /// Pass <c>null</c> if structured references are not expected.
+        /// </param>
+        /// <param name="rowIndex">
+        /// The 0-based row index of the cell containing the reference. Required only for
+        /// <c>[#This Row]</c> or <c>@</c> specifiers, which resolve relative to it. Leave at the
+        /// default (<c>-1</c>, meaning "not specified") otherwise: a row-relative reference then
+        /// fails with an explicit <see cref="FormulaParseException"/> rather than silently
+        /// resolving against an unintended row.
+        /// </param>
+        /// <exception cref="FormulaParseException">
+        /// The structured reference syntax is malformed, names a table that does not exist in the
+        /// workbook, names a column the table does not have, uses <c>[#This Row]</c> or <c>@</c>
+        /// without a <paramref name="rowIndex"/>, or targets a workbook that is not
+        /// <see cref="SpreadsheetVersion.EXCEL2007"/>.
+        /// </exception>
+        /// <exception cref="InvalidOperationException">
+        /// The structured reference is syntactically valid but does not designate a single area, so
+        /// there is no range to return. In a formula this would evaluate to an Excel error value
+        /// instead. The common causes are <c>[#Totals]</c> on a table with no totals row (<c>#REF!</c>)
+        /// and <c>[#This Row]</c> or <c>@</c> with a <paramref name="rowIndex"/> outside the table's
+        /// row range (<c>#VALUE!</c>).
+        /// </exception>
+        public AreaReference(String reference, SpreadsheetVersion version,
+            IFormulaParsingWorkbook workbook, int rowIndex = ROW_INDEX_NOT_SPECIFIED)
+        {
+            _version = (null != version) ? version : DEFAULT_SPREADSHEET_VERSION;
+
+            // When a workbook is provided, detect and resolve structured table references
+            // (e.g., "Table1[#Headers]", "Table1[[#Data],[Column1]]") that would otherwise
+            // fail in the A1-style parser below. Anything the detector rejects falls through to
+            // that parser, so non-structured input behaves exactly as it did before.
+            if (workbook != null && IsStructuredReference(reference))
+            {
+                Area3DPxg area = FormulaParser.ParseStructuredReference(reference, workbook, rowIndex);
+                // CellReference takes isAbsolute flags; AreaPtgBase stores isRelative — invert.
+                _firstCell = new CellReference(
+                    area.SheetName,
+                    area.FirstRow,
+                    area.FirstColumn,
+                    !area.IsFirstRowRelative,
+                    !area.IsFirstColRelative);
+                _lastCell = new CellReference(
+                    area.SheetName,
+                    area.LastRow,
+                    area.LastColumn,
+                    !area.IsLastRowRelative,
+                    !area.IsLastColRelative);
+                _isSingleCell = area.FirstRow == area.LastRow && area.FirstColumn == area.LastColumn;
+                return;
+            }
+
+            if (!IsContiguous(reference))
+            {
+                throw new ArgumentException(
+                        "References passed to the AreaReference must be contiguous, " +
+                        "use generateContiguous(ref) if you have non-contiguous references");
+            }
+
+            String[] parts = SeparateAreaRefs(reference);
+
+            String part0 = parts[0];
+            if (parts.Length == 1)
+            {
+                // TODO - probably shouldn't initialize area ref when text is really a cell ref
+                // Need to fix some named range stuff to get rid of this
+                _firstCell = new CellReference(part0);
+
+                _lastCell = _firstCell;
+                _isSingleCell = true;
+                return;
+            }
+            if (parts.Length != 2)
+            {
+                throw new ArgumentException("Bad area ref '" + reference + "'");
+            }
+            String part1 = parts[1];
+            if (IsPlainColumn(part0))
+            {
+                if (!IsPlainColumn(part1))
+                {
+                    throw new Exception("Bad area ref '" + reference + "'");
+                }
+                // Special handling for whole-column references
+                // Represented internally as x$1 to x$65536
+                //  which is the maximum range of rows
+
+                bool firstIsAbs = CellReference.IsPartAbsolute(part0);
+                bool lastIsAbs = CellReference.IsPartAbsolute(part1);
+
+                int col0 = CellReference.ConvertColStringToIndex(part0);
+                int col1 = CellReference.ConvertColStringToIndex(part1);
+
+                _firstCell = new CellReference(0, col0, true, firstIsAbs);
+                _lastCell = new CellReference(0xFFFF, col1, true, lastIsAbs);
+                _isSingleCell = false;
+                // TODO - whole row refs
+            }
+            else
+            {
+                _firstCell = new CellReference(part0);
+                _lastCell = new CellReference(part1);
+                _isSingleCell = part0.Equals(part1);
+            }
+        }
+        public AreaReference(CellReference topLeft, CellReference botRight, SpreadsheetVersion version)
+        {
+            _version = (null != version) ? version : DEFAULT_SPREADSHEET_VERSION;
+            bool swapRows = topLeft.Row > botRight.Row;
+            bool swapCols = topLeft.Col > botRight.Col;
+            if (swapRows || swapCols)
+            {
+                int firstRow;
+                int lastRow;
+                int firstColumn;
+                int lastColumn;
+                bool firstRowAbs;
+                bool lastRowAbs;
+                bool firstColAbs;
+                bool lastColAbs;
+                if (swapRows)
+                {
+                    firstRow = botRight.Row;
+                    firstRowAbs = botRight.IsRowAbsolute;
+                    lastRow = topLeft.Row;
+                    lastRowAbs = topLeft.IsRowAbsolute;
+                }
+                else
+                {
+                    firstRow = topLeft.Row;
+                    firstRowAbs = topLeft.IsRowAbsolute;
+                    lastRow = botRight.Row;
+                    lastRowAbs = botRight.IsRowAbsolute;
+                }
+                if (swapCols)
+                {
+                    firstColumn = botRight.Col;
+                    firstColAbs = botRight.IsColAbsolute;
+                    lastColumn = topLeft.Col;
+                    lastColAbs = topLeft.IsColAbsolute;
+                }
+                else
+                {
+                    firstColumn = topLeft.Col;
+                    firstColAbs = topLeft.IsColAbsolute;
+                    lastColumn = botRight.Col;
+                    lastColAbs = botRight.IsColAbsolute;
+                }
+                _firstCell = new CellReference(firstRow, firstColumn, firstRowAbs, firstColAbs);
+                _lastCell = new CellReference(lastRow, lastColumn, lastRowAbs, lastColAbs);
+            }
+            else
+            {
+                _firstCell = topLeft;
+                _lastCell = botRight;
+            }
+            _isSingleCell = false;
+        }
+        private static bool IsPlainColumn(String refPart)
+        {
+            for (int i = refPart.Length - 1; i >= 0; i--)
+            {
+                int ch = refPart[i];
+                if (ch == '$' && i == 0)
+                {
+                    continue;
+                }
+                if (ch < 'A' || ch > 'Z')
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+        public static AreaReference GetWholeRow(SpreadsheetVersion version, String start, String end)
+        {
+            if (null == version)
+            {
+                version = DEFAULT_SPREADSHEET_VERSION;
+            }
+            return new AreaReference("$A" + start + ":$" + version.LastColumnName + end, version);
+        }
+
+        public static AreaReference GetWholeColumn(SpreadsheetVersion version, String start, String end)
+        {
+            if (null == version)
+            {
+                version = DEFAULT_SPREADSHEET_VERSION;
+            }
+            return new AreaReference(start + "$1:" + end + "$" + version.MaxRows, version);
+        }
+
+
+        /**
+         * Creates an area ref from a pair of Cell References.
+         */
+        public AreaReference(CellReference topLeft, CellReference botRight)
+        {
+            _version = DEFAULT_SPREADSHEET_VERSION;
+
+            bool swapRows = topLeft.Row > botRight.Row;
+            bool swapCols = topLeft.Col > botRight.Col;
+            if (swapRows || swapCols)
+            {
+                int firstRow;
+                int lastRow;
+                int firstColumn;
+                int lastColumn;
+                bool firstRowAbs;
+                bool lastRowAbs;
+                bool firstColAbs;
+                bool lastColAbs;
+                if (swapRows)
+                {
+                    firstRow = botRight.Row;
+                    firstRowAbs = botRight.IsRowAbsolute;
+                    lastRow = topLeft.Row;
+                    lastRowAbs = topLeft.IsRowAbsolute;
+                }
+                else
+                {
+                    firstRow = topLeft.Row;
+                    firstRowAbs = topLeft.IsRowAbsolute;
+                    lastRow = botRight.Row;
+                    lastRowAbs = botRight.IsRowAbsolute;
+                }
+                if (swapCols)
+                {
+                    firstColumn = botRight.Col;
+                    firstColAbs = botRight.IsColAbsolute;
+                    lastColumn = topLeft.Col;
+                    lastColAbs = topLeft.IsColAbsolute;
+                }
+                else
+                {
+                    firstColumn = topLeft.Col;
+                    firstColAbs = topLeft.IsColAbsolute;
+                    lastColumn = botRight.Col;
+                    lastColAbs = botRight.IsColAbsolute;
+                }
+                _firstCell = new CellReference(firstRow, firstColumn, firstRowAbs, firstColAbs);
+                _lastCell = new CellReference(lastRow, lastColumn, lastRowAbs, lastColAbs);
+            }
+            else
+            {
+                _firstCell = topLeft;
+                _lastCell = botRight;
+            }
+            _isSingleCell = false;
+        }
+
+        /// <summary>
+        /// Resolves an Excel structured table reference (e.g., <c>Table1[#Headers]</c>,
+        /// <c>Table1[[#Data],[Column1]]</c>) to a concrete cell range against the given workbook's
+        /// table definitions.
+        /// </summary>
+        /// <remarks>
+        /// This is the explicit counterpart to
+        /// <see cref="AreaReference(String, SpreadsheetVersion, IFormulaParsingWorkbook, int)"/>:
+        /// it derives the spreadsheet version from <paramref name="workbook"/> rather than taking a
+        /// version that would be ignored, and it rejects non-structured input instead of silently
+        /// falling back to A1-style parsing. Use the constructor when a reference may be either form
+        /// (e.g. resolving a named range whose <c>RefersToFormula</c> is not known in advance).
+        /// </remarks>
+        /// <param name="reference">The structured table reference to resolve.</param>
+        /// <param name="workbook">
+        /// The formula parsing workbook holding the table definitions. Obtain one from an
+        /// <c>XSSFWorkbook</c> via <c>XSSFEvaluationWorkbook.Create(workbook)</c>.
+        /// </param>
+        /// <param name="rowIndex">
+        /// The 0-based row index the reference appears on. Required only for <c>[#This Row]</c> or
+        /// <c>@</c> specifiers; leave at the default otherwise.
+        /// </param>
+        /// <returns>The resolved area.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="reference"/> or <paramref name="workbook"/> is <c>null</c>.
+        /// </exception>
+        /// <exception cref="ArgumentException">
+        /// <paramref name="reference"/> is not a structured table reference.
+        /// </exception>
+        /// <exception cref="FormulaParseException">
+        /// As documented on <see cref="AreaReference(String, SpreadsheetVersion, IFormulaParsingWorkbook, int)"/>.
+        /// </exception>
+        /// <exception cref="InvalidOperationException">
+        /// As documented on <see cref="AreaReference(String, SpreadsheetVersion, IFormulaParsingWorkbook, int)"/>.
+        /// </exception>
+        public static AreaReference FromStructuredReference(String reference,
+            IFormulaParsingWorkbook workbook, int rowIndex = ROW_INDEX_NOT_SPECIFIED)
+        {
+            if (reference == null)
+            {
+                throw new ArgumentNullException(nameof(reference));
+            }
+            if (workbook == null)
+            {
+                throw new ArgumentNullException(nameof(workbook));
+            }
+            if (!IsStructuredReference(reference))
+            {
+                throw new ArgumentException(
+                    "'" + reference + "' is not a structured table reference. Use the AreaReference " +
+                    "constructor for A1-style references.", nameof(reference));
+            }
+
+            return new AreaReference(reference, workbook.GetSpreadsheetVersion(), workbook, rowIndex);
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> if the given reference string uses Excel structured table reference
+        /// syntax (e.g., <c>Table1[#Headers]</c>, <c>Table1[[#Data],[Column1]]</c>).
+        /// </summary>
+        /// <param name="reference">The reference string to test.</param>
+        /// <returns><c>true</c> if the reference is a structured table reference; otherwise <c>false</c>.</returns>
+        public static bool IsStructuredReference(String reference)
+        {
+            if (reference == null)
+            {
+                return false;
+            }
+
+            // Require the regex to span the entire input — the underlying pattern is
+            // unanchored, so without this check a bracketed substring inside a larger
+            // value would false-positive.
+            var match = Table.IsStructuredReference.Match(reference);
+            return match.Success && match.Index == 0 && match.Length == reference.Length;
+        }
+
+        /**
+         * is the reference for a contiguous (i.e.
+         *  Unbroken) area, or is it made up of
+         *  several different parts?
+         * (If it Is, you will need to call
+         *  ....
+         */
+        public static bool IsContiguous(String reference)
+        {
+            // If there's a sheet name, strip it off
+            int sheetRefEnd = reference.IndexOf('!');
+            if (sheetRefEnd != -1)
+            {
+                reference = reference.Substring(sheetRefEnd);
+            }
+
+            // Check for the , as a sign of non-coniguous
+            if (!reference.Contains(','))
+            {
+                return true;
+            }
+            return false;
+        }
+
+        /**
+         * is the reference for a whole-column reference,
+         *  such as C:C or D:G ?
+         */
+        public static bool IsWholeColumnReference(SpreadsheetVersion version, CellReference topLeft, CellReference botRight)
+        {
+            if (null == version)
+            {
+                version = SpreadsheetVersion.EXCEL97; // how the code used to behave.
+            }
+            // These are represented as something like
+            //   C$1:C$65535 or D$1:F$0
+            // i.e. absolute from 1st row to 0th one
+            if (topLeft.Row == 0 && topLeft.IsRowAbsolute &&
+                (botRight.Row == version.LastRowIndex) && botRight.IsRowAbsolute)
+            {
+                return true;
+            }
+            return false;
+        }
+        public bool IsWholeColumnReference()
+        {
+            return IsWholeColumnReference(_version, _firstCell, _lastCell);
+        }
+        /// <summary>
+        /// Takes a non-contiguous area reference, and returns an array of contiguous area references
+        /// </summary>
+        /// <param name="version"></param>
+        /// <param name="reference"></param>
+        /// <returns></returns>
+        public static AreaReference[] GenerateContiguous(SpreadsheetVersion version, String reference)
+        {
+            ArrayList refs = new ArrayList();
+            String st = reference;
+            string[] token = st.Split(',');
+            foreach (string t in token)
+            {
+                refs.Add(
+                        new AreaReference(t, version)
+                );
+            }
+            return (AreaReference[])refs.ToArray(typeof(AreaReference));
+        }
+
+        /**
+         * @return <c>false</c> if this area reference involves more than one cell
+         */
+        public bool IsSingleCell
+        {
+            get { return _isSingleCell; }
+        }
+
+        /**
+         * @return the first cell reference which defines this area. Usually this cell is in the upper
+         * left corner of the area (but this is not a requirement).
+         */
+        public CellReference FirstCell
+        {
+            get { return _firstCell; }
+        }
+
+        /**
+         * Note - if this area reference refers to a single cell, the return value of this method will
+         * be identical to that of <c>GetFirstCell()</c>
+         * @return the second cell reference which defines this area.  For multi-cell areas, this is 
+         * cell diagonally opposite the 'first cell'.  Usually this cell is in the lower right corner 
+         * of the area (but this is not a requirement).
+         */
+        public CellReference LastCell
+        {
+            get{return _lastCell;}
+        }
+        /**
+         * Returns a reference to every cell covered by this area
+         */
+        public CellReference[] GetAllReferencedCells()
+        {
+            // Special case for single cell reference
+            if (_isSingleCell)
+            {
+                return new CellReference[] { _firstCell, };
+            }
+
+            // Interpolate between the two
+            int minRow = Math.Min(_firstCell.Row, _lastCell.Row);
+            int maxRow = Math.Max(_firstCell.Row, _lastCell.Row);
+            int minCol = Math.Min(_firstCell.Col, _lastCell.Col);
+            int maxCol = Math.Max(_firstCell.Col, _lastCell.Col);
+            String sheetName = _firstCell.SheetName;
+
+            ArrayList refs = new ArrayList();
+            for (int row = minRow; row <= maxRow; row++)
+            {
+                for (int col = minCol; col <= maxCol; col++)
+                {
+                    CellReference ref1 = new CellReference(sheetName, row, col, _firstCell.IsRowAbsolute, _firstCell.IsColAbsolute);
+                    refs.Add(ref1);
+                }
+            }
+            return (CellReference[])refs.ToArray(typeof(CellReference));
+        }
+
+        /**
+         *  Example return values:
+         *    <table border="0" cellpAdding="1" cellspacing="0" summary="Example return values">
+         *      <tr><th align='left'>Result</th><th align='left'>Comment</th></tr>
+         *      <tr><td>A1:A1</td><td>Single cell area reference without sheet</td></tr>
+         *      <tr><td>A1:$C$1</td><td>Multi-cell area reference without sheet</td></tr>
+         *      <tr><td>Sheet1!A$1:B4</td><td>Standard sheet name</td></tr>
+         *      <tr><td>'O''Brien''s Sales'!B5:C6' </td><td>Sheet name with special Chars</td></tr>
+         *    </table>
+         * @return the text representation of this area reference as it would appear in a formula.
+         */
+        public String FormatAsString()
+        {
+                // Special handling for whole-column references
+                if (IsWholeColumnReference())
+                {
+                    return
+                        CellReference.ConvertNumToColString(_firstCell.Col)
+                        + ":" +
+                        CellReference.ConvertNumToColString(_lastCell.Col);
+                }
+
+                StringBuilder sb = new StringBuilder(32);
+                sb.Append(_firstCell.FormatAsString());
+                if (!_isSingleCell)
+                {
+                    sb.Append(CELL_DELIMITER);
+                    if (_lastCell.SheetName == null)
+                    {
+                        sb.Append(_lastCell.FormatAsString());
+                    }
+                    else
+                    {
+                        // don't want to include the sheet name twice
+                        _lastCell.AppendCellReference(sb);
+                    }
+                }
+                return sb.ToString();
+        }
+        public override String ToString()
+        {
+            StringBuilder sb = new StringBuilder(64);
+            sb.Append(this.GetType().Name).Append(" [");
+            sb.Append(FormatAsString());
+            sb.Append("]");
+            return sb.ToString();
+        }
+
+        /**
+         * Separates Area refs in two parts and returns them as Separate elements in a String array,
+         * each qualified with the sheet name (if present)
+         * 
+         * @return array with one or two elements. never <c>null</c>
+         */
+        private static String[] SeparateAreaRefs(String reference)
+        {
+            // TODO - refactor cell reference parsing logic to one place.
+            // Current known incarnations: 
+            //   FormulaParser.Name
+            //   CellReference.SeparateRefParts() 
+            //   AreaReference.SeparateAreaRefs() (here)
+            //   SheetNameFormatter.format() (inverse)
+
+
+            int len = reference.Length;
+            int delimiterPos = -1;
+            bool insideDelimitedName = false;
+            for (int i = 0; i < len; i++)
+            {
+                switch (reference[i])
+                {
+                    case CELL_DELIMITER:
+                        if (!insideDelimitedName)
+                        {
+                            if (delimiterPos >= 0)
+                            {
+                                throw new ArgumentException("More than one cell delimiter '"
+                                        + CELL_DELIMITER + "' appears in area reference '" + reference + "'");
+                            }
+                            delimiterPos = i;
+                        }
+                        continue;
+                    case SPECIAL_NAME_DELIMITER:
+                        break;
+                    default:
+                        continue;
+                }
+                if (!insideDelimitedName)
+                {
+                    insideDelimitedName = true;
+                    continue;
+                }
+
+                if (i >= len - 1)
+                {
+                    // reference ends with the delimited name. 
+                    // Assume names like: "Sheet1!'A1'" are never legal.
+                    throw new ArgumentException("Area reference '" + reference
+                            + "' ends with special name delimiter '" + SPECIAL_NAME_DELIMITER + "'");
+                }
+                if (reference[i + 1] == SPECIAL_NAME_DELIMITER)
+                {
+                    // two consecutive quotes is the escape sequence for a single one
+                    i++; // skip this and keep parsing the special name
+                }
+                else
+                {
+                    // this is the end of the delimited name
+                    insideDelimitedName = false;
+                }
+            }
+            if (delimiterPos < 0)
+            {
+                return new String[] { reference, };
+            }
+
+            String partA = reference.Substring(0, delimiterPos);
+            String partB = reference.Substring(delimiterPos + 1);
+            if (partB.Contains(SHEET_NAME_DELIMITER))
+            {
+                // TODO - are references like "Sheet1!A1:Sheet1:B2" ever valid?  
+                // FormulaParser has code to handle that.
+
+                throw new Exception("Unexpected " + SHEET_NAME_DELIMITER
+                        + " in second cell reference of '" + reference + "'");
+            }
+
+            int plingPos = partA.LastIndexOf(SHEET_NAME_DELIMITER);
+            if (plingPos < 0)
+            {
+                return new String[] { partA, partB, };
+            }
+
+            String sheetName = partA.Substring(0, plingPos + 1); // +1 to include delimiter
+
+            return new String[] { partA, sheetName + partB, };
+        }
+    }
+
+}

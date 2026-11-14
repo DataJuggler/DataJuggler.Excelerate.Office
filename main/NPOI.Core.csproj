@@ -1,0 +1,39 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <AssemblyName>DataJuggler.Excelerate.Office.Core</AssemblyName>
+    <RootNamespace>DataJuggler.Excelerate.Office</RootNamespace>
+    <SignAssembly>true</SignAssembly>
+    <AssemblyOriginatorKeyFile>../DataJuggler.Excelerate.Office.snk</AssemblyOriginatorKeyFile>
+    <OutputPath>..\solution\$(Configuration)\</OutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DocumentationFile>..\solution\Release\DataJuggler.Excelerate.Office.Core.xml</DocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\font_metrics.properties" />
+    <EmbeddedResource Include="Resources\functionMetadata.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Enums.NET" />
+    <PackageReference Include="ExtendedNumerics.BigDecimal" />
+    <PackageReference Include="MathNet.Numerics.Signed" />
+    <PackageReference Include="Microsoft.IO.RecyclableMemoryStream" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="all" />
+    <PackageReference Include="BouncyCastle.Cryptography" />
+    <PackageReference Include="SharpZipLib" />
+    <PackageReference Include="SkiaSharp"/>
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies"/>
+    <PackageReference Include="ZString" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Util\Optional\" />
+  </ItemGroup>
+
+</Project>
