@@ -11,7 +11,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <VersionPrefix>11.0.0</VersionPrefix>
+    <VersionPrefix>11.0.1</VersionPrefix>
     <Title>DataJuggler.Excelerate.Office</Title>
     <Authors>DataJuggler,Tony Qu,NPOI Contributors</Authors>
     <Owners>DataJuggler</Owners>
