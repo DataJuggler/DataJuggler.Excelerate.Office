@@ -5,9 +5,12 @@
   <PropertyGroup>
     <TargetFramework>net11.0</TargetFramework>
     <PackageId>DataJuggler.Excelerate.Office</PackageId>
+    <GeneratePackageOnBuild Condition=" '$(Configuration)' == 'Release' ">true</GeneratePackageOnBuild>
     <OutputPath>..\solution\$(Configuration)\</OutputPath>
     <PublishPath>..\publish\</PublishPath>  
     <IncludeAllProjectOutputsInPackage>false</IncludeAllProjectOutputsInPackage>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <IncludeSymbols>false</IncludeSymbols>
   </PropertyGroup>
 
   <ItemGroup>
@@ -36,47 +39,20 @@
     <EnableDefaultItems>false</EnableDefaultItems>
   </PropertyGroup>
 
+  <!-- Only these files go in the package. IncludeBuildOutput is off so the placeholder NPOI.Pack.dll is left out. -->
   <ItemGroup>
-    <_MainAssembly Include="..\solution\$(Configuration)\$(TargetFramework)\DataJuggler.Excelerate.Office.Core.dll">
-      <TargetPath>DataJuggler.Excelerate.Office.Core.dll</TargetPath>
-    </_MainAssembly>
-    <_MainAssembly Include="..\solution\$(Configuration)\$(TargetFramework)\DataJuggler.Excelerate.Office.OOXML.dll">
-      <TargetPath>DataJuggler.Excelerate.Office.OOXML.dll</TargetPath>
-    </_MainAssembly>
-    <_MainAssembly Include="..\solution\$(Configuration)\$(TargetFramework)\DataJuggler.Excelerate.Office.OpenXml4Net.dll">
-      <TargetPath>DataJuggler.Excelerate.Office.OpenXml4Net.dll</TargetPath>
-    </_MainAssembly>
-    <_MainAssembly Include="..\solution\$(Configuration)\$(TargetFramework)\DataJuggler.Excelerate.Office.OpenXmlFormats.dll">
-      <TargetPath>DataJuggler.Excelerate.Office.OpenXmlFormats.dll</TargetPath>
-    </_MainAssembly>
-    <_MainAssembly Include="..\solution\$(Configuration)\$(TargetFramework)\DataJuggler.Excelerate.Office.Core.pdb">
-      <TargetPath>DataJuggler.Excelerate.Office.Core.pdb</TargetPath>
-    </_MainAssembly>
-    <_MainAssembly Include="..\solution\$(Configuration)\$(TargetFramework)\DataJuggler.Excelerate.Office.OOXML.pdb">
-      <TargetPath>DataJuggler.Excelerate.Office.OOXML.pdb</TargetPath>
-    </_MainAssembly>
-    <_MainAssembly Include="..\solution\$(Configuration)\$(TargetFramework)\DataJuggler.Excelerate.Office.OpenXml4Net.pdb">
-      <TargetPath>DataJuggler.Excelerate.Office.OpenXml4Net.pdb</TargetPath>
-    </_MainAssembly>
-    <_MainAssembly Include="..\solution\$(Configuration)\$(TargetFramework)\DataJuggler.Excelerate.Office.OpenXmlFormats.pdb">
-      <TargetPath>DataJuggler.Excelerate.Office.OpenXmlFormats.pdb</TargetPath>
-    </_MainAssembly>
-    <_MainAssembly Include="..\solution\$(Configuration)\$(TargetFramework)\DataJuggler.Excelerate.Office.Core.xml">
-      <TargetPath>DataJuggler.Excelerate.Office.Core.xml</TargetPath>
-    </_MainAssembly>
-    <_MainAssembly Include="..\solution\$(Configuration)\$(TargetFramework)\DataJuggler.Excelerate.Office.OOXML.xml">
-      <TargetPath>DataJuggler.Excelerate.Office.OOXML.xml</TargetPath>
-    </_MainAssembly>
-    <_MainAssembly Include="..\solution\$(Configuration)\$(TargetFramework)\DataJuggler.Excelerate.Office.OpenXml4Net.xml">
-      <TargetPath>DataJuggler.Excelerate.Office.OpenXml4Net.xml</TargetPath>
-    </_MainAssembly>
-    <_MainAssembly Include="..\solution\$(Configuration)\$(TargetFramework)\DataJuggler.Excelerate.Office.OpenXmlFormats.xml">
-      <TargetPath>DataJuggler.Excelerate.Office.OpenXmlFormats.xml</TargetPath>
-    </_MainAssembly>
-  </ItemGroup>
-
-  <ItemGroup>
-    <BuildOutputInPackage Include="@(_MainAssembly)" TargetFramework="$(TargetFramework)" />
+    <None Include="..\solution\$(Configuration)\$(TargetFramework)\DataJuggler.Excelerate.Office.Core.dll" Pack="true" PackagePath="lib\$(TargetFramework)\" Visible="false" />
+    <None Include="..\solution\$(Configuration)\$(TargetFramework)\DataJuggler.Excelerate.Office.Core.pdb" Pack="true" PackagePath="lib\$(TargetFramework)\" Visible="false" />
+    <None Include="..\solution\$(Configuration)\$(TargetFramework)\DataJuggler.Excelerate.Office.Core.xml" Pack="true" PackagePath="lib\$(TargetFramework)\" Visible="false" />
+    <None Include="..\solution\$(Configuration)\$(TargetFramework)\DataJuggler.Excelerate.Office.OOXML.dll" Pack="true" PackagePath="lib\$(TargetFramework)\" Visible="false" />
+    <None Include="..\solution\$(Configuration)\$(TargetFramework)\DataJuggler.Excelerate.Office.OOXML.pdb" Pack="true" PackagePath="lib\$(TargetFramework)\" Visible="false" />
+    <None Include="..\solution\$(Configuration)\$(TargetFramework)\DataJuggler.Excelerate.Office.OOXML.xml" Pack="true" PackagePath="lib\$(TargetFramework)\" Visible="false" />
+    <None Include="..\solution\$(Configuration)\$(TargetFramework)\DataJuggler.Excelerate.Office.OpenXml4Net.dll" Pack="true" PackagePath="lib\$(TargetFramework)\" Visible="false" />
+    <None Include="..\solution\$(Configuration)\$(TargetFramework)\DataJuggler.Excelerate.Office.OpenXml4Net.pdb" Pack="true" PackagePath="lib\$(TargetFramework)\" Visible="false" />
+    <None Include="..\solution\$(Configuration)\$(TargetFramework)\DataJuggler.Excelerate.Office.OpenXml4Net.xml" Pack="true" PackagePath="lib\$(TargetFramework)\" Visible="false" />
+    <None Include="..\solution\$(Configuration)\$(TargetFramework)\DataJuggler.Excelerate.Office.OpenXmlFormats.dll" Pack="true" PackagePath="lib\$(TargetFramework)\" Visible="false" />
+    <None Include="..\solution\$(Configuration)\$(TargetFramework)\DataJuggler.Excelerate.Office.OpenXmlFormats.pdb" Pack="true" PackagePath="lib\$(TargetFramework)\" Visible="false" />
+    <None Include="..\solution\$(Configuration)\$(TargetFramework)\DataJuggler.Excelerate.Office.OpenXmlFormats.xml" Pack="true" PackagePath="lib\$(TargetFramework)\" Visible="false" />
   </ItemGroup>
 
 </Project>
