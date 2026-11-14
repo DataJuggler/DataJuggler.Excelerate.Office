@@ -15,15 +15,15 @@
     <Title>DataJuggler.Excelerate.Office</Title>
     <Authors>DataJuggler,Tony Qu,NPOI Contributors</Authors>
     <Owners>DataJuggler</Owners>
-    <Description>Independent build of NPOI (a .NET port of Apache POI) under the Apache 2.0 license, used by DataJuggler.Excelerate. Not affiliated with the NPOI project.</Description>
-    <Summary>NPOI can read and write xls (Excel 97-2003), xlsx(Excel 2007+) and docx(Word 2007+). </Summary>
+    <Description>Free for everyone, commercial or not. Excel (.xlsx / .xls) read and write for .NET 11, built from NPOI's Apache 2.0 source without the OSMF fee EULA. Powers DataJuggler.Excelerate. Not affiliated with the NPOI project.</Description>
+    <Summary>Free Excel (.xlsx / .xls) read and write for .NET 11, based on NPOI.</Summary>
     <RepositoryUrl>https://github.com/DataJuggler/DataJuggler.Excelerate.Office</RepositoryUrl>
       
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageProjectUrl>https://github.com/DataJuggler/DataJuggler.Excelerate.Office</PackageProjectUrl>
     <Copyright>Portions Copyright Nissl LLC and NPOI Contributors. Modifications Copyright DataJuggler.</Copyright>
-    <PackageTags>xlsx xls Excel Word docx office ole</PackageTags>
+    <PackageTags>excel xlsx xls spreadsheet npoi free apache2 dotnet11</PackageTags>
 
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
