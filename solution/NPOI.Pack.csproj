@@ -39,20 +39,18 @@
     <EnableDefaultItems>false</EnableDefaultItems>
   </PropertyGroup>
 
-  <!-- Only these files go in the package. IncludeBuildOutput is off so the placeholder NPOI.Pack.dll is left out. -->
+  <!-- Only these files go in the package. IncludeBuildOutput is off so the placeholder NPOI.Pack.dll is left out.
+       DLLs come from each project's obj folder and the XML docs from solution\$(Configuration), because Rebuild All
+       can delete files from the shared net11.0 output folder while other projects are still building. -->
   <ItemGroup>
-    <None Include="..\solution\$(Configuration)\$(TargetFramework)\DataJuggler.Excelerate.Office.Core.dll" Pack="true" PackagePath="lib\$(TargetFramework)\" Visible="false" />
-    <None Include="..\solution\$(Configuration)\$(TargetFramework)\DataJuggler.Excelerate.Office.Core.pdb" Pack="true" PackagePath="lib\$(TargetFramework)\" Visible="false" />
-    <None Include="..\solution\$(Configuration)\$(TargetFramework)\DataJuggler.Excelerate.Office.Core.xml" Pack="true" PackagePath="lib\$(TargetFramework)\" Visible="false" />
-    <None Include="..\solution\$(Configuration)\$(TargetFramework)\DataJuggler.Excelerate.Office.OOXML.dll" Pack="true" PackagePath="lib\$(TargetFramework)\" Visible="false" />
-    <None Include="..\solution\$(Configuration)\$(TargetFramework)\DataJuggler.Excelerate.Office.OOXML.pdb" Pack="true" PackagePath="lib\$(TargetFramework)\" Visible="false" />
-    <None Include="..\solution\$(Configuration)\$(TargetFramework)\DataJuggler.Excelerate.Office.OOXML.xml" Pack="true" PackagePath="lib\$(TargetFramework)\" Visible="false" />
-    <None Include="..\solution\$(Configuration)\$(TargetFramework)\DataJuggler.Excelerate.Office.OpenXml4Net.dll" Pack="true" PackagePath="lib\$(TargetFramework)\" Visible="false" />
-    <None Include="..\solution\$(Configuration)\$(TargetFramework)\DataJuggler.Excelerate.Office.OpenXml4Net.pdb" Pack="true" PackagePath="lib\$(TargetFramework)\" Visible="false" />
-    <None Include="..\solution\$(Configuration)\$(TargetFramework)\DataJuggler.Excelerate.Office.OpenXml4Net.xml" Pack="true" PackagePath="lib\$(TargetFramework)\" Visible="false" />
-    <None Include="..\solution\$(Configuration)\$(TargetFramework)\DataJuggler.Excelerate.Office.OpenXmlFormats.dll" Pack="true" PackagePath="lib\$(TargetFramework)\" Visible="false" />
-    <None Include="..\solution\$(Configuration)\$(TargetFramework)\DataJuggler.Excelerate.Office.OpenXmlFormats.pdb" Pack="true" PackagePath="lib\$(TargetFramework)\" Visible="false" />
-    <None Include="..\solution\$(Configuration)\$(TargetFramework)\DataJuggler.Excelerate.Office.OpenXmlFormats.xml" Pack="true" PackagePath="lib\$(TargetFramework)\" Visible="false" />
+    <None Include="..\main\obj\$(Configuration)\$(TargetFramework)\DataJuggler.Excelerate.Office.Core.dll" Pack="true" PackagePath="lib\$(TargetFramework)\" Visible="false" />
+    <None Include="..\solution\$(Configuration)\DataJuggler.Excelerate.Office.Core.xml" Pack="true" PackagePath="lib\$(TargetFramework)\" Visible="false" />
+    <None Include="..\ooxml\obj\$(Configuration)\$(TargetFramework)\DataJuggler.Excelerate.Office.OOXML.dll" Pack="true" PackagePath="lib\$(TargetFramework)\" Visible="false" />
+    <None Include="..\solution\$(Configuration)\DataJuggler.Excelerate.Office.OOXML.xml" Pack="true" PackagePath="lib\$(TargetFramework)\" Visible="false" />
+    <None Include="..\openxml4Net\obj\$(Configuration)\$(TargetFramework)\DataJuggler.Excelerate.Office.OpenXml4Net.dll" Pack="true" PackagePath="lib\$(TargetFramework)\" Visible="false" />
+    <None Include="..\solution\$(Configuration)\DataJuggler.Excelerate.Office.OpenXml4Net.xml" Pack="true" PackagePath="lib\$(TargetFramework)\" Visible="false" />
+    <None Include="..\OpenXmlFormats\obj\$(Configuration)\$(TargetFramework)\DataJuggler.Excelerate.Office.OpenXmlFormats.dll" Pack="true" PackagePath="lib\$(TargetFramework)\" Visible="false" />
+    <None Include="..\solution\$(Configuration)\DataJuggler.Excelerate.Office.OpenXmlFormats.xml" Pack="true" PackagePath="lib\$(TargetFramework)\" Visible="false" />
   </ItemGroup>
 
 </Project>
